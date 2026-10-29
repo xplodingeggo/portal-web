@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>portal-web</title>
+        <style>
+            html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+            canvas { display: block; }
+            .hud {
+                position: fixed; left: 8px; font: 12px/1.4 ui-monospace, Consolas, monospace;
+                color: #e8e8e8; text-shadow: 0 1px 2px #000; pointer-events: none; white-space: pre;
+            }
+            #status { top: 8px; }
+            #stats { top: 26px; color: #9fd; }
+            #missing { top: 48px; color: #f8a; max-height: 70vh; overflow: hidden; }
+            #notice { top: 60%; left: 50%; transform: translateX(-50%); color: #fd8; font-size: 14px; }
+        </style>
+    </head>
+    <body>
+        <div id="status" class="hud">Starting…</div>
+        <div id="stats" class="hud"></div>
+        <div id="missing" class="hud"></div>
+        <div id="notice" class="hud"></div>
+        <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>

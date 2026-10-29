@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env.local
+# Never commit game content
+*.bsp
+*.vpk
+*.vtf
+*.vmt
+*.mdl
+*.vvd
+*.vtx
+
+# Source SDK 2013 copy, reference only (see sdk-reference/README.md)
+sdk-reference/portal-sdk-2013/
+
+# graphify output
+graphify-out/
