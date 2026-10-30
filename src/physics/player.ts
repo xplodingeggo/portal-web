@@ -6,7 +6,7 @@ import { PORTAL_HALF_HEIGHT, PORTAL_HALF_WIDTH } from '../render/portals';
 
 /**
  * Tuning, in inches and seconds. Taken from the Portal SDK: movevars_shared.cpp (gravity, friction,
- * stopspeed, accelerate), gamemovement.h (jump height) and portal_gamemovement.cpp (air control,
+ * stopspeed, accelerate), gamemovement.h (jump height, overridden below) and portal_gamemovement.cpp (air control,
  * fling lock, funnel). Walk speed isn't in the SDK (it's the retail cl_forwardspeed), so 175 is kept.
  */
 export const PlayerTuning = {
@@ -25,7 +25,8 @@ export const PlayerTuning = {
     funnelAmount: 6,
     maxSpeed: 175,
     duckSpeedScale: 1 / 3,
-    jumpHeight: 21,
+    /** SDK's 21 can't reach the 40-unit metal_box top; 45 leaves a window to land on it. */
+    jumpHeight: 45,
     stepSize: 18,
     standHeight: 72,
     duckHeight: 36,

@@ -86,7 +86,7 @@ describe.skipIf(!haveGame)('player physics', () => {
         }
     });
 
-    it('walks at max speed and jumps about 21 units high', () => {
+    it('walks at max speed and jumps about 45 units high', () => {
         // Open floor of the first test room (button room), facing its far wall.
         const p = new Player(world, [-640, -1000, 140]);
         run(p, 0.5, idle);
@@ -100,8 +100,8 @@ describe.skipIf(!haveGame)('player physics', () => {
         const floor = p.origin[2];
         let peak = floor;
         run(p, 1, { ...idle, jump: true }, () => (peak = Math.max(peak, p.origin[2])));
-        expect(peak - floor).toBeGreaterThan(19);
-        expect(peak - floor).toBeLessThan(23);
+        expect(peak - floor).toBeGreaterThan(43);
+        expect(peak - floor).toBeLessThan(47);
         expect(p.onGround).toBe(true);
     });
 
