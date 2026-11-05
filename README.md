@@ -1,20 +1,49 @@
 # portal-web
 
-A browser reimplementation of Portal (2007) that reads **your own installed game files**. It runs locally only, and no game content is included or committed.
+A browser reimplementation of Portal (2007) that reads **your own installed game files**. No game content is included or committed.
 
 ## Run
 
 ```sh
 pnpm install
 cp .env.example .env.local   # set GAME_DIR to your Portal install
-pnpm dev                     # http://127.0.0.1:5173/?map=testchmb_a_00
+pnpm dev                     # http://127.0.0.1:5173/
+pnpm typecheck
 pnpm test                    # format tests against your install (skipped if GAME_DIR is missing)
 ```
 
-- **Controls:** click to capture the mouse. You start as the player: WASD walks, Space jumps, Ctrl crouches, E picks up or drops a cube (and uses doors that allow it). G toggles the portal gun: left click places blue, right click orange. V toggles noclip (WASD flies, Space/Ctrl up/down, Shift fast, Alt slow). `[` / `]` change exposure.
-- **URL options:** `?map=<name>` loads any map in `portal/maps`. `&pos=x,y,z&ang=pitch,yaw` starts in noclip at that camera position.
-- **Debug filters:** `&props=<substring>` shows only matching prop models (`none` hides them all). `&hide=<substring>` hides matching world materials.
-- **Debug logic:** `&t=<seconds>` fast-forwards map logic, `&fire=target,input[,param];…` sends inputs at start (like `ent_fire`), `&gun=1` starts with the portal gun, `&shoot=color,pitch,yaw;…` fires it on the first frame.
+`pnpm build` type-checks and builds a static site. A deployed build loads game files from `<base>files/` (a `manifest.json` listing `{ path, size }` plus the files themselves, served with Range requests), or from a Portal folder the player picks in the browser. Set `PORTAL_BASE` to build for a sub-path.
+
+On start a screen asks where the game files come from: stream from the host, stream and keep a copy in the browser's private storage, download everything first, or pick a local Portal folder (nothing is uploaded; needs a Chromium browser).
+
+### Controls
+
+Click to capture the mouse. All keys can be rebound in Settings; defaults:
+
+| Key | Action |
+|---|---|
+| WASD, Space, Ctrl / C | walk, jump, crouch |
+| E | use doors and buttons, pick up or drop a cube |
+| Left / right click | blue / orange portal (once you have the gun) |
+| G | toggle the portal gun (debug) |
+| V | noclip (Space/Ctrl up and down, Shift fast, Alt slow) |
+| `;` / `'` | quick save / quick load |
+| F3 or 0 | show or hide the on-screen debug text (hidden by default) |
+| `[` / `]` | exposure down / up |
+| F11, Pause | fullscreen, pause |
+| `` ` `` | developer console |
+| Esc | pause menu (level select, save manager, settings, debug info, link to this repo) |
+
+The console understands the usual Source commands (`map`, `noclip`, `god`, `give weapon_portalgun`, `setpos`, `ent_fire`, `ent_create`, `sv_gravity`, `fov`, `volume`, ...); type `help` for the list.
+
+### URL options
+
+- `?map=<name>` loads any map in `portal/maps` (default `testchmb_a_00`). Starting a map normally begins in its elevator.
+- `&pos=x,y,z&ang=pitch,yaw` starts at that position instead.
+- `&gun=1` starts with the portal gun, `&shoot=color,pitch,yaw;...` fires it on the first frame.
+- `&t=<seconds>` fast-forwards map logic, `&fire=target,input[,param];...` sends inputs at start (like `ent_fire`).
+- `&props=<substring>` shows only matching prop models (`none` hides them all), `&hide=<substring>` hides matching world materials.
+- `&loadsave=<id>` loads a saved game.
 
 ## How it works
 
@@ -25,9 +54,12 @@ pnpm test                    # format tests against your install (skipped if GAM
 | `src/bsp/` | VBSP v19–21 lumps, entity lump, lightmap atlas, face/displacement mesh building, overlays, static props, BSP leaf lookup and ambient light cubes |
 | `src/material/` | KeyValues/VMT (with `patch` materials) and VTF 7.0–7.5 (DXT goes straight to the GPU) |
 | `src/model/` | Studio models: MDL v44–48, VVD (with fixups), VTX v7 strips, posing from a sequence's first frame, per-vertex static prop lighting (`.vhv`), and collision hulls (`.phy`) |
-| `src/physics/` | Box traces against BSP brushes and prop collision hulls; Source-style player movement (friction, air control, jumping, crouching, stair steps) at a fixed 66 Hz tick |
-| `src/game/` | Map logic: entity outputs → delayed inputs, logic_auto/relay/timer/case, math_counter, triggers (once, multiple, look, teleport, cleanser, changelevel), func_door/func_brush/func_tracktrain, prop_dynamic skins and animations, texture toggles, templates, carryable cubes, prop_portal |
-| `src/render/` | three.js world shader (base × lightmap), prop shader (baked vertex light or ambient cube), texture cache, noclip camera |
+| `src/physics/` | Box traces against BSP brushes and prop collision hulls; Source-style player movement (friction, air control, jumping, crouching, stair steps, a short climb assist onto ledges and props) at a fixed 66 Hz tick; `rigid.ts` runs physics props on Rapier |
+| `src/game/` | Map logic: entity outputs and delayed inputs, logic entities, triggers, doors, tracktrains, energy ball launchers and catchers, turrets, cubes and other physics props, portals and the portal gun, scenes (`scenes.image`) for dialogue timing, saved games, level changes |
+| `src/render/` | three.js world and prop shaders, texture cache, portals with recursion, viewmodel, HUD, fades and screen shake, particle layer |
+| `src/particles/` | PCF particle systems and the environment effects maps use |
+| `src/audio/` | Soundscripts and soundscapes played with Web Audio, with distance falloff and panning |
+| `src/ui/` | Start screen, pause menu, developer console, rebindable keys |
 
 ### Prop lighting
 
@@ -41,13 +73,8 @@ pnpm test                    # format tests against your install (skipped if GAM
 - Format layouts come from Valve's officially published Source SDK 2013 headers and the public Valve Developer Community wiki.
 - MIT code from [noclip.website](https://github.com/magcius/noclip.website) may be reused with credit in the file it lands in.
 
-## Roadmap
+## Status
 
-- **M1 (done):** world brushes, textures, baked lightmaps, noclip.
-- **M2 (in progress):** static props and prop entities are done, posed at frame 0 of their default sequence (`DefaultAnim`, otherwise sequence 0). Overlays (info_overlay decals, lump 45) are clipped onto their faces and use those faces' lightmaps. Still to do: playing animations, animations stored in external `.ani` files, the skybox, and cubemap reflections (`$envmap`).
-- **M3 (done):** player movement and collision, map logic, solid moving doors, floor buttons, cubes, portals (map-placed and portal gun), level changes through elevators.
-- **Known gaps:**
-  - Scripted scenes (GLaDOS dialogue `.vcd`s, in `scenes.image`) don't run, so their mid-scene events don't fire. Chamber signs are shown lit instead of waiting for a look trigger that a scene would enable.
-  - Cubes are axis-aligned boxes without rotation. Other physics props (chairs, mugs) stay put. Cubes don't go through portals yet.
-  - Portals show one level of recursion (a portal seen through a portal shows last frame's image). No sound.
-- **Later:** scene playback, real rigid-body physics, refract/water shaders, sound.
+Playable: the test chambers load and run from the elevator through level changes, with portals, cubes, buttons, doors, energy balls, turrets, sound, particles, saves and a level select.
+
+Not implemented (or only partly): `func_physbox`, `func_breakable_surf`, ragdolls and `phys_*` constraints, fog and `sky_camera`, `color_correction`, vgui screens, the credits, and some scripted-NPC entities. Expect rough edges on maps beyond the test chambers.
