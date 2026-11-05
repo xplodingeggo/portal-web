@@ -6,7 +6,7 @@ import { PORTAL_HALF_HEIGHT, PORTAL_HALF_WIDTH } from '../render/portals';
 
 /**
  * Tuning, in inches and seconds. Taken from the Portal SDK: movevars_shared.cpp (gravity, friction,
- * stopspeed, accelerate), gamemovement.h (jump height, overridden below) and portal_gamemovement.cpp (air control,
+ * stopspeed, accelerate), gamemovement.h (jump height) and portal_gamemovement.cpp (air control,
  * fling lock, funnel). Walk speed isn't in the SDK (it's the retail cl_forwardspeed), so 175 is kept.
  */
 export const PlayerTuning = {
@@ -25,9 +25,12 @@ export const PlayerTuning = {
     funnelAmount: 6,
     maxSpeed: 175,
     duckSpeedScale: 1 / 3,
-    /** SDK's 21 can't reach the 40-unit metal_box top; 45 leaves a window to land on it. */
     jumpHeight: 45,
     stepSize: 18,
+    /** How far above the feet a physics prop's top can be and still be climbed in a jump. */
+    mantleReach: 22,
+    /** Seconds a climb onto a ledge takes. */
+    climbTime: 0.12,
     standHeight: 72,
     duckHeight: 36,
     standEye: 64,
@@ -89,6 +92,8 @@ export class Player {
     /** Called when a move runs into a physics prop's hulls, with the velocity going into it. */
     onTouch: (model: CollisionModel, normal: Vec3, velocity: Vec3) => void = () => {};
     private jumpHeld = false;
+    /** A climb in progress (see mantle): the player glides from `from` to `to` instead of snapping. */
+    private climb: { from: Vec3; to: Vec3; t: number; vel: Vec3 } | null = null;
     private accumulator = 0;
 
     constructor(private world: CollisionWorld, origin: Vec3) {
@@ -111,6 +116,7 @@ export class Player {
     }
 
     teleport(origin: Vec3) {
+        this.climb = null;
         this.origin = [...origin];
         this.velocity = [0, 0, 0];
         this.unstick();
@@ -144,6 +150,7 @@ export class Player {
 
     private moveTick(dt: number, input: PlayerInput) {
         const T = PlayerTuning;
+        if (this.climb) return this.climbTick(dt);
         this.checkStuck();
         this.updateDuck(input.duck);
         this.categorize();
@@ -176,7 +183,7 @@ export class Player {
         } else {
             this.airMove(input, dt);
             this.velocity[2] -= T.gravity * this.gravityScale * dt * 0.5;
-            this.flyMove(dt);
+            if (!this.mantle(dt)) this.flyMove(dt);
             this.velocity[2] -= T.gravity * this.gravityScale * dt * 0.5;
         }
         this.categorize();
@@ -362,6 +369,52 @@ export class Player {
                 break;
             }
         }
+    }
+
+    /**
+     * A jump that runs into something whose top is within reach of the feet (a cube, a ledge, a low
+     * wall) takes the player up onto it, as the real game's player controller does, instead of
+     * stopping them against its side. The climb is a short glide. Returns whether it began.
+     */
+    private mantle(dt: number): boolean {
+        const T = PlayerTuning;
+        const v = this.velocity;
+        const speed = Math.hypot(v[0], v[1]);
+        if (speed < 1) return false;
+        const reach = Math.max(speed * dt, 3);
+        const dir: Vec3 = [v[0] / speed, v[1] / speed, 0];
+        const o = this.origin;
+        const ahead = this.trace(o, [o[0] + dir[0] * reach, o[1] + dir[1] * reach, o[2]]);
+        if (ahead.fraction >= 1) return false;
+        // A cube's edges are chamfered, so the side that's hit can slope: only for a prop is the normal ignored.
+        if (!ahead.model?.rigid && ahead.normal[2] >= T.minFloorNormal) return false;
+        // The smallest lift that clears the edge and still has room on top wins.
+        for (let lift = 2; lift <= T.mantleReach; lift += 2) {
+            const up = this.trace(o, [o[0], o[1], o[2] + lift]);
+            if (up.fraction < 1) break;
+            const over = this.trace(up.end, [up.end[0] + dir[0] * reach, up.end[1] + dir[1] * reach, up.end[2]]);
+            if (over.fraction < 1 || over.startSolid) continue;
+            const down = this.trace(over.end, [over.end[0], over.end[1], over.end[2] - lift]);
+            if (down.startSolid || down.allSolid || down.fraction >= 1 || down.normal[2] < T.minFloorNormal) continue;
+            if (down.end[2] <= o[2] + 0.5) continue;
+            this.climb = { from: [...o], to: down.end, t: 0, vel: [v[0] * 0.5, v[1] * 0.5, 0] };
+            return true;
+        }
+        return false;
+    }
+
+    /** One tick of a climb: ease up and over, then carry on from the top. */
+    private climbTick(dt: number) {
+        const c = this.climb!;
+        c.t = Math.min(1, c.t + dt / PlayerTuning.climbTime);
+        const k = c.t * c.t * (3 - 2 * c.t);
+        for (let i = 0; i < 3; i++) this.origin[i] = c.from[i] + (c.to[i] - c.from[i]) * k;
+        this.velocity = [0, 0, 0];
+        this.onGround = false;
+        if (c.t < 1) return;
+        this.velocity = c.vel;
+        this.climb = null;
+        this.categorize();
     }
 
     /** Ground movement: tries a plain slide and a step up/over, and keeps whichever got further. */

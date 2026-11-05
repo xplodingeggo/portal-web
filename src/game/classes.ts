@@ -871,7 +871,11 @@ class EnergyBallLauncher extends GameEntity {
                 break;
             }
             const to: Vec3 = [b.pos[0] + b.vel[0] * left, b.pos[1] + b.vel[1] * left, b.pos[2] + b.vel[2] * left];
+            // A carried cube is out of the player's way but not the ball's: held up in its path, it bounces the ball.
+            const carried = this.game.entities.flatMap((e) => (e instanceof PhysProp && e.held && e.collision && !e.collision.solid ? [e.collision] : []));
+            for (const m of carried) m.solid = true;
             const t = this.ctx.collision.trace(b.pos, to, [-r, -r, -r], [r, r, r]);
+            for (const m of carried) m.solid = false;
             if (t.fraction >= 1 || t.startSolid) {
                 b.pos = to;
                 break;

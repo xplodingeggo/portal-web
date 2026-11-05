@@ -365,7 +365,7 @@ async function main() {
      */
     const shoot = (color: 0 | 1, pitch = controller.pitch, yaw = controller.yaw, instant = false) => {
         if (!instant && (game.time < nextAttack || !game.playerGun?.[color])) return;
-        nextAttack = game.time + 0.5; // until the fire animation has played
+        nextAttack = game.time + 0.35; // a little under the fire animation, which can be cut short
         const eye = controller.eye();
         lastFired = (color + 1) as 1 | 2;
         sound.play(color ? 'Weapon_Portalgun.fire_red' : 'Weapon_Portalgun.fire_blue');
@@ -394,9 +394,10 @@ async function main() {
     let everLocked = false;
     const hideText = (hidden: boolean) => {
         document.body.classList.toggle('hidetext', hidden);
-        save('portal-web.hidetext', hidden ? '1' : '0');
+        save('portal-web.showtext', hidden ? '0' : '1');
     };
-    hideText(saved('portal-web.hidetext') === '1');
+    // Hidden until the player turns it on (F3), which is remembered.
+    hideText(saved('portal-web.showtext') !== '1');
     const toggleFullscreen = () => {
         if (document.fullscreenElement) void document.exitFullscreen();
         else void document.documentElement.requestFullscreen().catch(() => notice('Fullscreen was blocked by the browser'));
@@ -650,6 +651,7 @@ async function main() {
         }
     }
 
+    let sceneCalls = 0, sceneTris = 0;
     let last = performance.now();
     let frames = 0;
     let fpsTime = last;
@@ -703,6 +705,8 @@ async function main() {
         portals.render(camera, dt);
         const t3 = performance.now();
         renderer.render(scene, camera);
+        sceneCalls = renderer.info.render.calls;
+        sceneTris = renderer.info.render.triangles;
         shaker.restore(camera);
         const t3b = performance.now();
         viewmodel.update(dt, eye, [controller.pitch, controller.yaw, 0], controller.mode === 'walk' ? Math.hypot(player.velocity[0], player.velocity[1]) : 0);
@@ -742,7 +746,7 @@ async function main() {
             const [x, y, z] = controller.eye().map((c) => c.toFixed(0));
             const speed = Math.hypot(player.velocity[0], player.velocity[1]).toFixed(0);
             stats.textContent =
-                `${fps.toFixed(0)} fps · ${costs} · ${renderer.info.render.calls} draws · ${faceCount} faces · ` +
+                `${fps.toFixed(0)} fps · ${costs} · ${sceneCalls} draws · ${sceneTris} tris · ${faceCount} faces · ` +
                 `${world.batches.length} materials · ${props.length} props · pos ${x} ${y} ${z} · ` +
                 `${controller.mode}${controller.mode === 'walk' ? ` ${speed} u/s` : ''}${game.playerGun ? ' · portal gun' : ''} · ` +
                 `t ${game.time.toFixed(0)}s · exposure ${exposure.value.toFixed(2)}`;

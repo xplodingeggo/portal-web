@@ -30,6 +30,9 @@ const CSS = `
 #pausemenu h2 { margin: 8px 0 0; font-size: 13px; color: #99a; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
 #pausemenu button { padding: 8px 12px; background: #1d1d27; color: inherit; border: 1px solid #33333f; font: inherit; cursor: pointer; border-radius: 4px; text-align: left; }
 #pausemenu button:hover:not(:disabled) { border-color: #6a8; }
+#pausemenu .gh { position: absolute; left: 16px; bottom: 16px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    color: #99a; background: #14141b; border: 1px solid #33333f; border-radius: 50%; }
+#pausemenu .gh:hover { color: #e8e8e8; border-color: #6a8; }
 #pausemenu button:disabled { opacity: .45; cursor: default; }
 #pausemenu .row { display: flex; gap: 8px; align-items: center; }
 #pausemenu .row > .grow { flex: 1; min-width: 0; }
@@ -99,7 +102,9 @@ export class PauseMenu {
     private show(page: Page) {
         this.page = page;
         clearInterval(this.timer);
-        this.root.replaceChildren(el('div', { className: 'panel' }, ...this.render(page)));
+        const gh = el('a', { className: 'gh', href: 'https://github.com/xplodingeggo/portal-web', target: '_blank', rel: 'noopener', title: 'Source on GitHub' });
+        gh.innerHTML = '<svg width="22" height="22" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>';
+        this.root.replaceChildren(el('div', { className: 'panel' }, ...this.render(page)), gh);
     }
 
     private back() {
